@@ -356,7 +356,7 @@ function App() {
             aria-label="MIDI Learn and Settings" aria-haspopup="dialog" title="MIDI Learn and Settings">
             <Settings2 />
           </Button>
-          <span className={`hidden md:inline text-xs ${midiStatus === "Connected" ? "text-primary" : "text-muted-foreground"}`}>
+          <span className={`hidden md:inline text-xs ${midiStatus === "Connected" ? "text-green-500" : "text-muted-foreground"}`}>
             MIDI: {midiStatus}
           </span>
         </div>
