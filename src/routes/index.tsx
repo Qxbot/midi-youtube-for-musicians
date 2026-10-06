@@ -15,6 +15,11 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [
+      { rel: "icon", href: "/app-icon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/app-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+    ],
   }),
   component: App,
 });
@@ -342,7 +347,7 @@ function App() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
           <div className="flex items-center gap-2 font-bold tracking-tight">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground">♪</span>
+            <img src="/app-icon.png" alt="" className="h-8 w-8 rounded-md object-cover" />
             <span className="hidden sm:inline">Midi YouTube <span className="text-muted-foreground font-normal">for Musicians</span></span>
           </div>
           <form onSubmit={doSearch} className="flex flex-1 max-w-2xl">

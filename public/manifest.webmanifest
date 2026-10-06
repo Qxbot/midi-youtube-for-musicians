@@ -1,0 +1,17 @@
+{
+  "name": "Midi YouTube for Musicians",
+  "short_name": "Midi YouTube",
+  "description": "Control YouTube playback with any USB MIDI controller.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
