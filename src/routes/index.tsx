@@ -18,15 +18,12 @@ export const Route = createFileRoute("/")({
 
 /* ---------- types & storage ---------- */
 type ActionId =
-  | "playPause" | "goto1" | "goto2" | "goto3" | "goto4"
+  | "playPause" | "goto"
   | "forward" | "back" | "volUp" | "volDown" | "speedUp" | "speedDown";
 
 const ACTIONS: { id: ActionId; label: string }[] = [
   { id: "playPause", label: "Play / Pause" },
-  { id: "goto1", label: "Go to · Cue 1" },
-  { id: "goto2", label: "Go to · Cue 2" },
-  { id: "goto3", label: "Go to · Cue 3" },
-  { id: "goto4", label: "Go to · Cue 4" },
+  { id: "goto", label: "Go to" },
   { id: "forward", label: "Forward" },
   { id: "back", label: "Back" },
   { id: "volUp", label: "Volume +10%" },
@@ -37,7 +34,7 @@ const ACTIONS: { id: ActionId; label: string }[] = [
 
 type Settings = {
   mappings: Partial<Record<ActionId, string>>;
-  cues: Record<string, { m: number; s: number }>;
+  cues: { goto: { m: number; s: number } };
   seekStep: number;
   volume: number;
   speed: number;
@@ -53,7 +50,7 @@ const KEY = "midi-yt-musicians-v1";
 const DEFAULTS: Saved = {
   settings: {
     mappings: {},
-    cues: { goto1: { m: 0, s: 0 }, goto2: { m: 0, s: 30 }, goto3: { m: 1, s: 0 }, goto4: { m: 2, s: 0 } },
+    cues: { goto: { m: 0, s: 0 } },
     seekStep: 5,
     volume: 80,
     speed: 1,
@@ -68,7 +65,20 @@ function load(): Saved {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULTS;
     const p = JSON.parse(raw);
-    return { ...DEFAULTS, ...p, settings: { ...DEFAULTS.settings, ...p.settings } };
+    const settings: Settings = { ...DEFAULTS.settings, ...p.settings };
+    // migrate: old multi-cue "Go to" (goto1..goto4) -> single "goto"
+    const cues = { ...(p.settings?.cues ?? {}) } as Record<string, { m: number; s: number } | undefined>;
+    for (const old of ["goto1", "goto2", "goto3", "goto4"]) {
+      if (cues[old]) { cues.goto = cues[old]; delete cues[old]; }
+    }
+    if (!cues.goto) cues.goto = { m: 0, s: 0 };
+    settings.cues = cues as Settings["cues"];
+    const maps = { ...(p.settings?.mappings ?? {}) } as Record<string, string | undefined>;
+    for (const old of ["goto1", "goto2", "goto3", "goto4"]) {
+      if (maps[old]) { maps.goto = maps[old]; delete maps[old]; }
+    }
+    settings.mappings = maps as Settings["mappings"];
+    return { ...DEFAULTS, ...p, settings };
   } catch {
     return DEFAULTS;
   }
@@ -200,8 +210,8 @@ function App() {
         if (p.getPlayerState() === 1) { p.pauseVideo(); flash("❚❚  Pause"); }
         else { p.playVideo(); flash("▶  Play"); }
         break;
-      case "goto1": case "goto2": case "goto3": case "goto4": {
-        const c = s.cues[id] ?? { m: 0, s: 0 }; const target = c.m * 60 + c.s;
+      case "goto": {
+        const c = s.cues.goto ?? { m: 0, s: 0 }; const target = c.m * 60 + c.s;
         p.seekTo(target, true); flash(`⤓  Go to ${fmt(target)}`); break;
       }
       case "forward": p.seekTo(Math.min(t + s.seekStep, p.getDuration()), true); flash(`»  +${s.seekStep}s`); break;
@@ -380,6 +390,7 @@ function App() {
           <div className="mt-2 flex gap-2">
             <button onClick={() => runAction("back")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">« {s.seekStep}s</button>
             <button onClick={() => runAction("playPause")} className="rounded-md bg-primary px-4 py-1.5 text-primary-foreground">{playing ? "Pause" : "Play"}</button>
+            <button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`} className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-500">Go to</button>
             <button onClick={() => runAction("forward")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">{s.seekStep}s »</button>
           </div>
 
@@ -426,15 +437,15 @@ function App() {
                         className="text-xs text-muted-foreground hover:text-destructive">✕</button>
                     )}
                   </div>
-                  {a.id.startsWith("goto") && (
+                  {a.id === "goto" && (
                     <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-                      <input type="number" min={0} value={(s.cues[a.id]?.m ?? 0)}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { s: 0, ...x.cues[a.id], m: Math.max(0, +e.target.value) } } }))}
+                      <input type="number" min={0} value={s.cues.goto?.m ?? 0}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { s: 0, ...x.cues.goto, m: Math.max(0, +e.target.value) } } }))}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> min
-                      <input type="number" min={0} max={59} value={(s.cues[a.id]?.s ?? 0)}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: 0, ...x.cues[a.id], s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
+                      <input type="number" min={0} max={59} value={s.cues.goto?.s ?? 0}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { m: 0, ...x.cues.goto, s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> sec
-                      <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: Math.floor(t / 60), s: t % 60 } } })); }}
+                      <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { m: Math.floor(t / 60), s: t % 60 } } })); }}
                         className="ml-auto rounded bg-secondary px-2 py-0.5 hover:bg-accent">Use current</button>
                     </div>
                   )}
