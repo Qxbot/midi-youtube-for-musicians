@@ -75,7 +75,7 @@ function load(): Saved {
     settings.cues = cues as Settings["cues"];
     const maps = { ...(p.settings?.mappings ?? {}) } as Record<string, string | undefined>;
     for (const old of ["goto1", "goto2", "goto3", "goto4"]) {
-      if (maps[old]) { maps.goto = maps[old]; delete maps[old]; }
+      if (maps[old]) { maps["goto"] = maps[old]; delete maps[old]; }
     }
     settings.mappings = maps as Settings["mappings"];
     return { ...DEFAULTS, ...p, settings };
