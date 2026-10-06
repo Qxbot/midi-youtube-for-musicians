@@ -348,7 +348,7 @@ function App() {
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
           <div className="flex items-center gap-2 font-bold tracking-tight">
             <img src="/app-icon.png" alt="" className="h-8 w-8 rounded-md object-cover" />
-            <span className="hidden sm:inline">Midi YouTube <span className="text-muted-foreground font-normal">for Musicians</span></span>
+            <span className="hidden sm:flex sm:flex-col sm:leading-tight"><span>Midi YouTube</span><span className="text-muted-foreground font-normal">for Musicians</span></span>
           </div>
           <form onSubmit={doSearch} className="flex flex-1 max-w-2xl">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouTube"
