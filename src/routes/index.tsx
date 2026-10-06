@@ -69,7 +69,7 @@ function load(): Saved {
     // migrate: old multi-cue "Go to" (goto1..goto4) -> single "goto"
     const cues = { ...(p.settings?.cues ?? {}) } as Record<string, { m: number; s: number } | undefined>;
     for (const old of ["goto1", "goto2", "goto3", "goto4"]) {
-      if (cues[old]) { cues.goto = cues[old]; delete cues[old]; }
+      if (cues[old]) { cues["goto"] = cues[old]; delete cues[old]; }
     }
     if (!cues["goto"]) cues["goto"] = { m: 0, s: 0 };
     settings.cues = cues as Settings["cues"];
