@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { searchYouTube, type VideoResult } from "@/lib/youtube-search.functions";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Settings2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -110,6 +113,7 @@ function loadYT(): Promise<any> {
 /* ---------- App ---------- */
 function App() {
   const [ready, setReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [state, setState] = useState<Saved>(DEFAULTS);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -343,18 +347,22 @@ function App() {
           </div>
           <form onSubmit={doSearch} className="flex flex-1 max-w-2xl">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouTube"
-              className="flex-1 rounded-l-full border border-input bg-card px-4 py-2 outline-none focus:border-primary" />
-            <button className="rounded-r-full border border-l-0 border-input bg-secondary px-5 hover:bg-accent">
+              className="min-w-0 flex-1 rounded-l-full border border-input bg-card px-4 py-2 outline-none focus:border-primary" />
+            <Button type="submit" variant="secondary" className="h-auto rounded-l-none rounded-r-full border border-l-0 border-input px-5">
               {searching ? "…" : "Search"}
-            </button>
+            </Button>
           </form>
+          <Button variant="secondary" size="icon" className="shrink-0" onClick={() => setSettingsOpen(true)}
+            aria-label="MIDI Learn and Settings" aria-haspopup="dialog" title="MIDI Learn and Settings">
+            <Settings2 />
+          </Button>
           <span className={`hidden md:inline text-xs ${midiStatus === "Connected" ? "text-primary" : "text-muted-foreground"}`}>
             MIDI: {midiStatus}
           </span>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[1fr_340px]">
+      <main className="mx-auto max-w-7xl px-4 py-6">
         <section>
           <div ref={stageRef} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
             {/* iframe cropped top/bottom to hide title/share and "more videos" bars */}
@@ -387,11 +395,11 @@ function App() {
             </div>
           </div>
           <h1 className="mt-3 text-lg font-semibold">{state.lastVideo?.title ?? "No video selected"}</h1>
-          <div className="mt-2 flex gap-2">
-            <button onClick={() => runAction("back")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">« {s.seekStep}s</button>
-            <button onClick={() => runAction("playPause")} className="rounded-md bg-primary px-4 py-1.5 text-primary-foreground">{playing ? "Pause" : "Play"}</button>
-            <button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`} className="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-500">Go to</button>
-            <button onClick={() => runAction("forward")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">{s.seekStep}s »</button>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => runAction("back")}>« {s.seekStep}s</Button>
+            <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
+            <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
+            <Button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`}>Go to</Button>
           </div>
 
           <h2 className="mt-8 mb-3 text-sm uppercase tracking-wider text-muted-foreground">
@@ -416,8 +424,12 @@ function App() {
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4">
+        <Dialog open={settingsOpen} onOpenChange={(open) => { setSettingsOpen(open); if (!open) setLearning(null); }}>
+          <DialogContent aria-describedby={undefined} className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg">
+            <DialogHeader>
+              <DialogTitle>MIDI Learn & Settings</DialogTitle>
+            </DialogHeader>
+          <section>
             <h2 className="font-semibold">MIDI Learn</h2>
             <p className="text-xs text-muted-foreground mt-1">
               {devices.length ? devices.join(", ") : midiStatus}{lastMsg && ` · last: ${lastMsg}`}
@@ -452,19 +464,20 @@ function App() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3 text-sm">
+          </section>
+          <section className="border-t border-border pt-4 space-y-3 text-sm">
             <h2 className="font-semibold">Settings</h2>
             <label className="flex items-center justify-between">Forward / back step (sec)
               <input type="number" min={1} max={600} value={s.seekStep}
                 onChange={(e) => setSettings((x) => ({ ...x, seekStep: Math.max(1, +e.target.value || 1) }))}
                 className="w-20 rounded border border-input bg-background px-2 py-1" />
             </label>
-            <label className="flex items-center justify-between">Auto full screen on external display / DeX
+            <label className="flex items-center justify-between gap-4">Auto full screen on external display / DeX
               <input type="checkbox" checked={s.autoFullscreen} onChange={(e) => setSettings((x) => ({ ...x, autoFullscreen: e.target.checked }))} className="accent-primary h-4 w-4" />
             </label>
-          </div>
-        </aside>
+          </section>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

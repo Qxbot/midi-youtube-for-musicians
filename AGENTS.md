@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep MIDI Learn and playback settings in the shared accessible dialog, not a page sidebar, so configuration does not displace the video or search results.
+- Prebundle React and shared popup dependencies together in Vite so late dependency discovery cannot introduce mismatched React instances in an open preview.
