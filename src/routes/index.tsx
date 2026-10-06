@@ -139,7 +139,7 @@ function App() {
       if (cancelled || !hostRef.current) return;
       const lv = stateRef.current.lastVideo;
       playerRef.current = new YT.Player(hostRef.current, {
-        videoId: lv?.id,
+        ...(lv ? { videoId: lv.id } : {}),
         playerVars: {
           controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1,
           fs: 0, playsinline: 1, cc_load_policy: 0, autoplay: 1,
