@@ -85,16 +85,15 @@ declare global {
 }
 
 function loadYT(): Promise<any> {
+  if (!document.getElementById("yt-api")) {
+    const sc = document.createElement("script");
+    sc.id = "yt-api";
+    sc.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(sc);
+  }
   return new Promise((resolve) => {
-    if (window.YT?.Player) return resolve(window.YT);
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
-    if (!document.getElementById("yt-api")) {
-      const s = document.createElement("script");
-      s.id = "yt-api";
-      s.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(s);
-    }
+    const check = () => (window.YT?.Player ? resolve(window.YT) : setTimeout(check, 100));
+    check();
   });
 }
 
@@ -137,12 +136,16 @@ function App() {
     let cancelled = false;
     loadYT().then((YT) => {
       if (cancelled || !hostRef.current) return;
+      hostRef.current.innerHTML = "";
+      const el = document.createElement("div");
+      hostRef.current.appendChild(el);
       const lv = stateRef.current.lastVideo;
-      playerRef.current = new YT.Player(hostRef.current, {
+      playerRef.current = new YT.Player(el, {
+        width: "100%", height: "100%",
         ...(lv ? { videoId: lv.id } : {}),
         playerVars: {
           controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1,
-          fs: 0, playsinline: 1, cc_load_policy: 0, autoplay: 1,
+          fs: 0, playsinline: 1, cc_load_policy: 0, autoplay: 1, origin: window.location.origin,
           start: lv ? Math.floor(lv.time) : 0,
         },
         events: {
@@ -161,7 +164,7 @@ function App() {
         },
       });
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; try { playerRef.current?.destroy?.(); } catch {} playerRef.current = null; };
   }, [ready]);
 
   // poll progress; save position; stop before end-screen suggestions
