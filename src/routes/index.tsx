@@ -1,24 +1,457 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { searchYouTube, type VideoResult } from "@/lib/youtube-search.functions";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Midi YouTube for Musicians" },
+      { name: "description", content: "Control YouTube playback with any USB MIDI controller: play, cue points, seek, volume and speed." },
+      { property: "og:title", content: "Midi YouTube for Musicians" },
+      { property: "og:description", content: "Practice with YouTube hands-free using your MIDI controller." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: App,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+/* ---------- types & storage ---------- */
+type ActionId =
+  | "playPause" | "goto1" | "goto2" | "goto3" | "goto4"
+  | "forward" | "back" | "volUp" | "volDown" | "speedUp" | "speedDown";
+
+const ACTIONS: { id: ActionId; label: string }[] = [
+  { id: "playPause", label: "Play / Pause" },
+  { id: "goto1", label: "Go to · Cue 1" },
+  { id: "goto2", label: "Go to · Cue 2" },
+  { id: "goto3", label: "Go to · Cue 3" },
+  { id: "goto4", label: "Go to · Cue 4" },
+  { id: "forward", label: "Forward" },
+  { id: "back", label: "Back" },
+  { id: "volUp", label: "Volume +10%" },
+  { id: "volDown", label: "Volume −10%" },
+  { id: "speedUp", label: "Speed +25%" },
+  { id: "speedDown", label: "Speed −25%" },
+];
+
+type Settings = {
+  mappings: Partial<Record<ActionId, string>>;
+  cues: Record<string, { m: number; s: number }>;
+  seekStep: number;
+  volume: number;
+  speed: number;
+  autoFullscreen: boolean;
+};
+type Saved = {
+  settings: Settings;
+  lastQuery: string;
+  lastResults: VideoResult[];
+  lastVideo: { id: string; title: string; time: number } | null;
+};
+const KEY = "midi-yt-musicians-v1";
+const DEFAULTS: Saved = {
+  settings: {
+    mappings: {},
+    cues: { goto1: { m: 0, s: 0 }, goto2: { m: 0, s: 30 }, goto3: { m: 1, s: 0 }, goto4: { m: 2, s: 0 } },
+    seekStep: 5,
+    volume: 80,
+    speed: 1,
+    autoFullscreen: true,
+  },
+  lastQuery: "",
+  lastResults: [],
+  lastVideo: null,
+};
+function load(): Saved {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return DEFAULTS;
+    const p = JSON.parse(raw);
+    return { ...DEFAULTS, ...p, settings: { ...DEFAULTS.settings, ...p.settings } };
+  } catch {
+    return DEFAULTS;
+  }
+}
+
+const fmt = (t: number) => {
+  t = Math.max(0, Math.floor(t || 0));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(s).padStart(2, "0")}`;
+};
+
+declare global {
+  interface Window { YT: any; onYouTubeIframeAPIReady?: () => void }
+}
+
+function loadYT(): Promise<any> {
+  return new Promise((resolve) => {
+    if (window.YT?.Player) return resolve(window.YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
+    if (!document.getElementById("yt-api")) {
+      const s = document.createElement("script");
+      s.id = "yt-api";
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    }
+  });
+}
+
+/* ---------- App ---------- */
+function App() {
+  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<Saved>(DEFAULTS);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useEffect(() => { setState(load()); setReady(true); }, []);
+  useEffect(() => { if (ready) localStorage.setItem(KEY, JSON.stringify(state)); }, [state, ready]);
+
+  const setSettings = (fn: (s: Settings) => Settings) =>
+    setState((p) => ({ ...p, settings: fn(p.settings) }));
+
+  /* player */
+  const playerRef = useRef<any>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [overlay, setOverlay] = useState<{ text: string; key: number } | null>(null);
+  const overlayTimer = useRef<number | undefined>(undefined);
+
+  const flash = useCallback((text: string) => {
+    setOverlay({ text, key: Date.now() });
+    window.clearTimeout(overlayTimer.current);
+    overlayTimer.current = window.setTimeout(() => setOverlay(null), 2000);
+  }, []);
+
+  const killCaptions = () => {
+    const p = playerRef.current;
+    try { p?.unloadModule?.("captions"); p?.unloadModule?.("cc"); p?.setOption?.("captions", "track", {}); } catch {}
+  };
+
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    loadYT().then((YT) => {
+      if (cancelled || !hostRef.current) return;
+      const lv = stateRef.current.lastVideo;
+      playerRef.current = new YT.Player(hostRef.current, {
+        ...(lv ? { videoId: lv.id } : {}),
+        playerVars: {
+          controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1,
+          fs: 0, playsinline: 1, cc_load_policy: 0, autoplay: 1,
+          start: lv ? Math.floor(lv.time) : 0,
+        },
+        events: {
+          onReady: (e: any) => {
+            const s = stateRef.current.settings;
+            e.target.setVolume(s.volume);
+            e.target.setPlaybackRate(s.speed);
+            killCaptions();
+            if (lv) e.target.playVideo();
+          },
+          onStateChange: (e: any) => {
+            setPlaying(e.data === 1);
+            if (e.data === 1) { killCaptions(); e.target.setPlaybackRate(stateRef.current.settings.speed); }
+          },
+          onApiChange: killCaptions,
+        },
+      });
+    });
+    return () => { cancelled = true; };
+  }, [ready]);
+
+  // poll progress; save position; stop before end-screen suggestions
+  useEffect(() => {
+    const iv = window.setInterval(() => {
+      const p = playerRef.current;
+      if (!p?.getCurrentTime) return;
+      const t = p.getCurrentTime(), d = p.getDuration();
+      setTime(t); setDuration(d);
+      if (d > 0 && t > d - 0.4 && p.getPlayerState() === 1) { p.pauseVideo(); p.seekTo(d - 0.5, true); }
+    }, 250);
+    const sv = window.setInterval(() => {
+      const p = playerRef.current;
+      if (!p?.getCurrentTime) return;
+      setState((s) => (s.lastVideo ? { ...s, lastVideo: { ...s.lastVideo, time: p.getCurrentTime() } } : s));
+    }, 3000);
+    return () => { clearInterval(iv); clearInterval(sv); };
+  }, []);
+
+  const playVideo = (v: VideoResult) => {
+    setState((s) => ({ ...s, lastVideo: { id: v.id, title: v.title, time: 0 } }));
+    playerRef.current?.loadVideoById?.({ videoId: v.id, startSeconds: 0 });
+  };
+
+  /* actions */
+  const runAction = useCallback((id: ActionId) => {
+    const p = playerRef.current;
+    if (!p?.getPlayerState) return;
+    const s = stateRef.current.settings;
+    const t = p.getCurrentTime();
+    switch (id) {
+      case "playPause":
+        if (p.getPlayerState() === 1) { p.pauseVideo(); flash("❚❚  Pause"); }
+        else { p.playVideo(); flash("▶  Play"); }
+        break;
+      case "goto1": case "goto2": case "goto3": case "goto4": {
+        const c = s.cues[id] ?? { m: 0, s: 0 }; const target = c.m * 60 + c.s;
+        p.seekTo(target, true); flash(`⤓  Go to ${fmt(target)}`); break;
+      }
+      case "forward": p.seekTo(Math.min(t + s.seekStep, p.getDuration()), true); flash(`»  +${s.seekStep}s`); break;
+      case "back": p.seekTo(Math.max(t - s.seekStep, 0), true); flash(`«  −${s.seekStep}s`); break;
+      case "volUp": case "volDown": {
+        const v = Math.max(0, Math.min(100, s.volume + (id === "volUp" ? 10 : -10)));
+        p.setVolume(v); if (v > 0) p.unMute();
+        setSettings((x) => ({ ...x, volume: v })); flash(`🔊  Volume ${v}%`); break;
+      }
+      case "speedUp": case "speedDown": {
+        const r = Math.max(0.25, Math.min(2, s.speed + (id === "speedUp" ? 0.25 : -0.25)));
+        p.setPlaybackRate(r); setSettings((x) => ({ ...x, speed: r })); flash(`⏱  Speed ${r}x`); break;
+      }
+    }
+  }, [flash]);
+
+  /* MIDI */
+  const [midiStatus, setMidiStatus] = useState("Connecting…");
+  const [devices, setDevices] = useState<string[]>([]);
+  const [learning, setLearning] = useState<ActionId | null>(null);
+  const learningRef = useRef(learning);
+  learningRef.current = learning;
+  const [lastMsg, setLastMsg] = useState("");
+
+  useEffect(() => {
+    if (!ready) return;
+    const nav = navigator as any;
+    if (!nav.requestMIDIAccess) { setMidiStatus("Web MIDI not supported in this browser (use Chrome or Edge)"); return; }
+    let access: any;
+    const onMsg = (e: any) => {
+      const [st = 0, d1 = 0, d2 = 0] = e.data as Uint8Array;
+      const type = st & 0xf0, ch = (st & 0x0f) + 1;
+      let key: string | null = null;
+      if (type === 0x90 && d2 > 0) key = `note:${ch}:${d1}`;
+      else if (type === 0xb0 && d2 > 0) key = `cc:${ch}:${d1}`;
+      else if (type === 0xc0) key = `pc:${ch}:${d1}`;
+      if (!key) return;
+      setLastMsg(key.replace(/:/, " ch").replace(/:/, " #"));
+      const l = learningRef.current;
+      if (l) {
+        setSettings((s) => {
+          const m = { ...s.mappings };
+          for (const k in m) if (m[k as ActionId] === key) delete m[k as ActionId];
+          m[l] = key!;
+          return { ...s, mappings: m };
+        });
+        setLearning(null);
+        flash(`Learned: ${ACTIONS.find((a) => a.id === l)?.label}`);
+        return;
+      }
+      const maps = stateRef.current.settings.mappings;
+      const act = (Object.keys(maps) as ActionId[]).find((k) => maps[k] === key);
+      if (act) runAction(act);
+    };
+    const bind = () => {
+      const names: string[] = [];
+      access.inputs.forEach((i: any) => { i.onmidimessage = onMsg; names.push(i.name); });
+      setDevices(names);
+      setMidiStatus(names.length ? "Connected" : "No MIDI device found – plug in a controller");
+    };
+    nav.requestMIDIAccess().then((a: any) => { access = a; bind(); a.onstatechange = bind; },
+      () => setMidiStatus("MIDI access denied"));
+    return () => { access?.inputs.forEach((i: any) => (i.onmidimessage = null)); };
+  }, [ready, runAction, flash]);
+
+  /* fullscreen */
+  const [isFs, setIsFs] = useState(false);
+  const toggleFs = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else stageRef.current?.requestFullscreen?.().catch(() => {});
+  };
+  useEffect(() => {
+    const h = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+  useEffect(() => {
+    if (!ready || !state.settings.autoFullscreen) return;
+    const external = (window.screen as any).isExtended || /DeX/i.test(navigator.userAgent) ||
+      (window.screen.width >= 1600 && matchMedia("(pointer: fine)").matches);
+    if (!external) return;
+    const go = () => { if (!document.fullscreenElement) stageRef.current?.requestFullscreen?.().catch(() => {}); };
+    go(); // browsers may require a first click/key; fall back below
+    const once = () => { go(); cleanup(); };
+    const cleanup = () => { window.removeEventListener("pointerdown", once); window.removeEventListener("keydown", once); };
+    window.addEventListener("pointerdown", once); window.addEventListener("keydown", once);
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  /* search */
+  const [query, setQuery] = useState("");
+  useEffect(() => { if (ready) setQuery(state.lastQuery); /* eslint-disable-next-line */ }, [ready]);
+  const [searching, setSearching] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const doSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const q = query.trim(); if (!q) return;
+    setSearching(true);
+    try {
+      const { results } = await searchYouTube({ data: { q } });
+      setState((s) => ({ ...s, lastQuery: q, lastResults: results }));
+    } finally { setSearching(false); }
+  };
+  const pick = (v: VideoResult) => {
+    setSelected(v.id);
+    setTimeout(() => setSelected(null), 1200);
+    playVideo(v);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const seekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const target = ((e.clientX - r.left) / r.width) * duration;
+    playerRef.current?.seekTo?.(target, true);
+    flash(`⤓  ${fmt(target)}`);
+  };
+
+  const s = state.settings;
+  const pct = duration ? (time / duration) * 100 : 0;
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+          <div className="flex items-center gap-2 font-bold tracking-tight">
+            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground">♪</span>
+            <span className="hidden sm:inline">Midi YouTube <span className="text-muted-foreground font-normal">for Musicians</span></span>
+          </div>
+          <form onSubmit={doSearch} className="flex flex-1 max-w-2xl">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouTube"
+              className="flex-1 rounded-l-full border border-input bg-card px-4 py-2 outline-none focus:border-primary" />
+            <button className="rounded-r-full border border-l-0 border-input bg-secondary px-5 hover:bg-accent">
+              {searching ? "…" : "Search"}
+            </button>
+          </form>
+          <span className={`hidden md:inline text-xs ${midiStatus === "Connected" ? "text-primary" : "text-muted-foreground"}`}>
+            MIDI: {midiStatus}
+          </span>
+        </div>
+      </header>
+
+      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[1fr_340px]">
+        <section>
+          <div ref={stageRef} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
+            {/* iframe cropped top/bottom to hide title/share and "more videos" bars */}
+            <div className="absolute inset-x-0 -top-[60px] -bottom-[60px]">
+              <div ref={hostRef} className="h-full w-full" />
+            </div>
+            {/* click shield: blocks YouTube hover overlays */}
+            <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => runAction("playPause")} onDoubleClick={toggleFs} />
+            {!state.lastVideo && (
+              <div className="absolute inset-0 z-10 grid place-items-center text-muted-foreground pointer-events-none">Search and pick a video</div>
+            )}
+            {overlay && (
+              <div key={overlay.key} className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+                <div className="animate-in fade-in zoom-in-95 rounded-2xl bg-background/80 px-8 py-4 text-3xl font-bold shadow-2xl backdrop-blur">
+                  {overlay.text}
+                </div>
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 z-20">
+              <div className="flex justify-between px-3 pb-1 text-xs font-medium text-foreground/90 drop-shadow">
+                <span>{fmt(time)} / {fmt(duration)}</span>
+                <span className="flex gap-3">
+                  <span>{s.speed}x · {s.volume}%</span>
+                  <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
+                </span>
+              </div>
+              <div className="h-1.5 w-full cursor-pointer bg-foreground/25 hover:h-2.5 transition-all" onClick={seekClick}>
+                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          </div>
+          <h1 className="mt-3 text-lg font-semibold">{state.lastVideo?.title ?? "No video selected"}</h1>
+          <div className="mt-2 flex gap-2">
+            <button onClick={() => runAction("back")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">« {s.seekStep}s</button>
+            <button onClick={() => runAction("playPause")} className="rounded-md bg-primary px-4 py-1.5 text-primary-foreground">{playing ? "Pause" : "Play"}</button>
+            <button onClick={() => runAction("forward")} className="rounded-md bg-secondary px-3 py-1.5 hover:bg-accent">{s.seekStep}s »</button>
+          </div>
+
+          <h2 className="mt-8 mb-3 text-sm uppercase tracking-wider text-muted-foreground">
+            {state.lastQuery ? `Results for “${state.lastQuery}”` : "Search results"}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {state.lastResults.map((v) => {
+              const active = state.lastVideo?.id === v.id;
+              return (
+                <button key={v.id} onClick={() => pick(v)}
+                  className={`group/card rounded-xl p-2 text-left transition-all duration-200 hover:-translate-y-1 hover:bg-card hover:ring-2 hover:ring-primary/60 ${
+                    selected === v.id ? "bg-primary text-primary-foreground ring-2 ring-primary" : active ? "bg-card ring-1 ring-primary/40" : ""}`}>
+                  <div className="relative overflow-hidden rounded-lg">
+                    <img src={v.thumbnail} alt="" loading="lazy" className="aspect-video w-full object-cover transition-transform group-hover/card:scale-105" />
+                    <span className="absolute bottom-1 right-1 rounded bg-background/85 px-1.5 text-xs text-foreground">{v.duration}</span>
+                  </div>
+                  <div className="mt-2 line-clamp-2 text-sm font-medium">{v.title}</div>
+                  <div className={`text-xs ${selected === v.id ? "" : "text-muted-foreground"}`}>{v.channel} · {v.views}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <aside className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="font-semibold">MIDI Learn</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {devices.length ? devices.join(", ") : midiStatus}{lastMsg && ` · last: ${lastMsg}`}
+            </p>
+            <ul className="mt-3 space-y-1.5">
+              {ACTIONS.map((a) => (
+                <li key={a.id} className="rounded-md bg-background/50 p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm">{a.label}</span>
+                    <code className="text-xs text-muted-foreground">{s.mappings[a.id] ?? "—"}</code>
+                    <button onClick={() => setLearning(learning === a.id ? null : a.id)}
+                      className={`rounded px-2 py-0.5 text-xs ${learning === a.id ? "bg-primary text-primary-foreground animate-pulse" : "bg-secondary hover:bg-accent"}`}>
+                      {learning === a.id ? "Press…" : "Learn"}
+                    </button>
+                    {s.mappings[a.id] && (
+                      <button onClick={() => setSettings((x) => { const m = { ...x.mappings }; delete m[a.id]; return { ...x, mappings: m }; })}
+                        className="text-xs text-muted-foreground hover:text-destructive">✕</button>
+                    )}
+                  </div>
+                  {a.id.startsWith("goto") && (
+                    <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <input type="number" min={0} value={(s.cues[a.id]?.m ?? 0)}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { s: 0, ...x.cues[a.id], m: Math.max(0, +e.target.value) } } }))}
+                        className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> min
+                      <input type="number" min={0} max={59} value={(s.cues[a.id]?.s ?? 0)}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: 0, ...x.cues[a.id], s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
+                        className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> sec
+                      <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: Math.floor(t / 60), s: t % 60 } } })); }}
+                        className="ml-auto rounded bg-secondary px-2 py-0.5 hover:bg-accent">Use current</button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3 text-sm">
+            <h2 className="font-semibold">Settings</h2>
+            <label className="flex items-center justify-between">Forward / back step (sec)
+              <input type="number" min={1} max={600} value={s.seekStep}
+                onChange={(e) => setSettings((x) => ({ ...x, seekStep: Math.max(1, +e.target.value || 1) }))}
+                className="w-20 rounded border border-input bg-background px-2 py-1" />
+            </label>
+            <label className="flex items-center justify-between">Auto full screen on external display / DeX
+              <input type="checkbox" checked={s.autoFullscreen} onChange={(e) => setSettings((x) => ({ ...x, autoFullscreen: e.target.checked }))} className="accent-primary h-4 w-4" />
+            </label>
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }
