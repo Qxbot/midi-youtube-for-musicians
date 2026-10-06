@@ -198,7 +198,7 @@ function App() {
         else { p.playVideo(); flash("▶  Play"); }
         break;
       case "goto1": case "goto2": case "goto3": case "goto4": {
-        const c = s.cues[id]; const target = c.m * 60 + c.s;
+        const c = s.cues[id] ?? { m: 0, s: 0 }; const target = c.m * 60 + c.s;
         p.seekTo(target, true); flash(`⤓  Go to ${fmt(target)}`); break;
       }
       case "forward": p.seekTo(Math.min(t + s.seekStep, p.getDuration()), true); flash(`»  +${s.seekStep}s`); break;
@@ -229,7 +229,7 @@ function App() {
     if (!nav.requestMIDIAccess) { setMidiStatus("Web MIDI not supported in this browser (use Chrome or Edge)"); return; }
     let access: any;
     const onMsg = (e: any) => {
-      const [st, d1, d2] = e.data as Uint8Array;
+      const [st = 0, d1 = 0, d2 = 0] = e.data as Uint8Array;
       const type = st & 0xf0, ch = (st & 0x0f) + 1;
       let key: string | null = null;
       if (type === 0x90 && d2 > 0) key = `note:${ch}:${d1}`;
@@ -425,11 +425,11 @@ function App() {
                   </div>
                   {a.id.startsWith("goto") && (
                     <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-                      <input type="number" min={0} value={s.cues[a.id].m}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { ...x.cues[a.id], m: Math.max(0, +e.target.value) } } }))}
+                      <input type="number" min={0} value={(s.cues[a.id]?.m ?? 0)}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { s: 0, ...x.cues[a.id], m: Math.max(0, +e.target.value) } } }))}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> min
-                      <input type="number" min={0} max={59} value={s.cues[a.id].s}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { ...x.cues[a.id], s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
+                      <input type="number" min={0} max={59} value={(s.cues[a.id]?.s ?? 0)}
+                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: 0, ...x.cues[a.id], s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> sec
                       <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, [a.id]: { m: Math.floor(t / 60), s: t % 60 } } })); }}
                         className="ml-auto rounded bg-secondary px-2 py-0.5 hover:bg-accent">Use current</button>

@@ -17,8 +17,8 @@ function collect(node: unknown, out: VideoResult[]) {
     return;
   }
   const obj = node as Record<string, any>;
-  if (obj.videoRenderer?.videoId) {
-    const v = obj.videoRenderer;
+  if (obj['videoRenderer']?.videoId) {
+    const v = obj['videoRenderer'];
     out.push({
       id: v.videoId,
       title: v.title?.runs?.map((r: any) => r.text).join("") ?? "",
@@ -51,7 +51,7 @@ export const searchYouTube = createServerFn({ method: "POST" })
     if (!m) return { results: [] as VideoResult[] };
     const out: VideoResult[] = [];
     try {
-      collect(JSON.parse(m[1]), out);
+      collect(JSON.parse(m[1] ?? 'null'), out);
     } catch {
       return { results: [] as VideoResult[] };
     }
