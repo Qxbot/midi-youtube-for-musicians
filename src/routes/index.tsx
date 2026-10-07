@@ -468,10 +468,11 @@ function App() {
         </section>
 
         <Dialog open={settingsOpen} onOpenChange={(open) => { setSettingsOpen(open); if (!open) setLearning(null); }}>
-          <DialogContent aria-describedby={undefined} className="box-border w-[calc(100vw-1rem)] max-w-xl max-h-[85dvh] overflow-x-hidden overflow-y-auto rounded-lg p-4 sm:p-6">
-            <DialogHeader>
+          <DialogContent aria-describedby={undefined} className="box-border flex w-[calc(100vw-1rem)] max-w-xl max-h-[85dvh] flex-col overflow-hidden rounded-lg p-4 sm:p-6">
+            <DialogHeader className="shrink-0">
               <DialogTitle>MIDI Learn & Settings</DialogTitle>
             </DialogHeader>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pt-4">
           <section>
             <h2 className="font-semibold">MIDI Learn</h2>
             <p className="mt-1 min-w-0 break-words text-xs text-muted-foreground">
@@ -546,6 +547,7 @@ function App() {
               </ul>
             )}
           </section>
+            </div>
 
           </DialogContent>
         </Dialog>
