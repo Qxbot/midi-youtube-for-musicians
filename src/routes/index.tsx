@@ -468,7 +468,7 @@ function App() {
         </section>
 
         <Dialog open={settingsOpen} onOpenChange={(open) => { setSettingsOpen(open); if (!open) setLearning(null); }}>
-          <DialogContent aria-describedby={undefined} className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg">
+          <DialogContent aria-describedby={undefined} className="box-border w-[calc(100vw-1rem)] max-w-xl max-h-[85dvh] overflow-x-hidden overflow-y-auto rounded-lg p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>MIDI Learn & Settings</DialogTitle>
             </DialogHeader>
@@ -479,7 +479,7 @@ function App() {
             </p>
             <ul className="mt-3 space-y-1.5">
               {ACTIONS.map((a) => (
-                <li key={a.id} className="rounded-md bg-background/50 p-2">
+                <li key={a.id} className="min-w-0 overflow-hidden rounded-md bg-background/50 p-2">
                   <div className="flex items-center gap-2">
                     <span className="flex-1 text-sm">{a.label}</span>
                     <code className="text-xs text-muted-foreground">{s.mappings[a.id] ?? "—"}</code>
@@ -529,7 +529,7 @@ function App() {
                 {state.favorites.map((f) => {
                   const gotoSeconds = f.goto.m * 60 + f.goto.s;
                   return (
-                    <li key={f.id} className="flex items-center gap-2 rounded-md bg-background/50 p-2">
+                    <li key={f.id} className="flex min-w-0 items-center gap-2 overflow-hidden rounded-md bg-background/50 p-2">
                       <button onClick={() => openFavorite(f)} className="min-w-0 flex-1 text-left hover:text-primary">
                         <span className="block truncate text-sm font-medium">{f.title}</span>
                         <span className="text-xs text-muted-foreground">Go to {fmt(gotoSeconds)}</span>
