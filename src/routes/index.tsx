@@ -487,14 +487,24 @@ function App() {
                         onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { ...x.cues.goto, s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> sec
                       <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { m: Math.floor(t / 60), s: t % 60 } } })); }}
-                        className="ml-auto rounded bg-secondary px-2 py-0.5 hover:bg-accent">Use current</button>
+                        className="rounded bg-secondary px-2 py-0.5 hover:bg-accent">Current</button>
                     </div>
                   )}
                 </li>
               ))}
             </ul>
           </section>
-          <section className="border-t border-border pt-4">
+          <section className="border-t border-border pt-4 space-y-3 text-sm">
+            <h2 className="font-semibold">Settings</h2>
+            <label className="flex items-center justify-between">Forward / back step (sec)
+              <input type="number" min={1} max={600} value={s.seekStep}
+                onChange={(e) => setSettings((x) => ({ ...x, seekStep: Math.max(1, +e.target.value || 1) }))}
+                className="w-20 rounded border border-input bg-background px-2 py-1" />
+            </label>
+            <label className="flex items-center justify-between gap-4">Auto full screen on external display / DeX
+              <input type="checkbox" checked={s.autoFullscreen} onChange={(e) => setSettings((x) => ({ ...x, autoFullscreen: e.target.checked }))} className="accent-primary h-4 w-4" />
+            </label>
+          </section>          <section className="border-t border-border pt-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Favorites</h2>
               <Heart className="h-4 w-4 text-muted-foreground" />
@@ -523,17 +533,7 @@ function App() {
               </ul>
             )}
           </section>
-          <section className="border-t border-border pt-4 space-y-3 text-sm">
-            <h2 className="font-semibold">Settings</h2>
-            <label className="flex items-center justify-between">Forward / back step (sec)
-              <input type="number" min={1} max={600} value={s.seekStep}
-                onChange={(e) => setSettings((x) => ({ ...x, seekStep: Math.max(1, +e.target.value || 1) }))}
-                className="w-20 rounded border border-input bg-background px-2 py-1" />
-            </label>
-            <label className="flex items-center justify-between gap-4">Auto full screen on external display / DeX
-              <input type="checkbox" checked={s.autoFullscreen} onChange={(e) => setSettings((x) => ({ ...x, autoFullscreen: e.target.checked }))} className="accent-primary h-4 w-4" />
-            </label>
-          </section>
+
           </DialogContent>
         </Dialog>
       </main>
