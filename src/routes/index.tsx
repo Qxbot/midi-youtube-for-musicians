@@ -499,11 +499,11 @@ function App() {
               <h2 className="font-semibold">Favorites</h2>
               <Heart className="h-4 w-4 text-muted-foreground" />
             </div>
-            {s.favorites.length === 0 ? (
+            {state.favorites.length === 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">No favorites yet. Press the heart next to “Go to” to save the current video and its Go to position.</p>
             ) : (
               <ul className="mt-3 space-y-2">
-                {s.favorites.map((f) => {
+                {state.favorites.map((f) => {
                   const gotoSeconds = f.goto.m * 60 + f.goto.s;
                   return (
                     <li key={f.id} className="flex items-center gap-2 rounded-md bg-background/50 p-2">
