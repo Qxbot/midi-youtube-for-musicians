@@ -9,6 +9,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Midi YouTube for Musicians" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "description", content: "Control YouTube playback with any USB MIDI controller: play, cue points, seek, volume and speed." },
       { property: "og:title", content: "Midi YouTube for Musicians" },
       { property: "og:description", content: "Practice with YouTube hands-free using your MIDI controller." },
@@ -376,14 +377,14 @@ function App() {
   const pct = duration ? (time / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-          <div className="flex items-center gap-2 font-bold tracking-tight">
+        <div className="mx-auto flex w-full min-w-0 max-w-7xl items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2 font-bold tracking-tight">
             <img src="/app-icon.png" alt="" className="h-8 w-8 rounded-md object-cover" />
             <span className="hidden sm:flex sm:flex-col sm:leading-tight"><span>Midi YouTube</span><span className="text-muted-foreground font-normal">for Musicians</span></span>
           </div>
-          <form onSubmit={doSearch} className="flex flex-1 max-w-2xl">
+          <form onSubmit={doSearch} className="flex min-w-0 flex-1 max-w-2xl">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouTube"
               className="min-w-0 flex-1 rounded-l-full border border-input bg-card px-4 py-2 outline-none focus:border-primary" />
             <Button type="submit" variant="secondary" className="h-auto rounded-l-none rounded-r-full border border-l-0 border-input px-5">
@@ -400,7 +401,7 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden px-3 py-6 sm:px-4">
         <section>
           <div ref={stageRef} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
             {/* iframe cropped top/bottom to hide title/share and "more videos" bars */}
