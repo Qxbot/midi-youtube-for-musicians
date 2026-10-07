@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { searchYouTube, type VideoResult } from "@/lib/youtube-search.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Settings2 } from "lucide-react";
+import { Heart, Settings2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,11 +48,13 @@ type Settings = {
   speed: number;
   autoFullscreen: boolean;
 };
+type Favorite = { id: string; title: string; goto: { m: number; s: number } };
 type Saved = {
   settings: Settings;
   lastQuery: string;
   lastResults: VideoResult[];
   lastVideo: { id: string; title: string; time: number } | null;
+  favorites: Favorite[];
 };
 const KEY = "midi-yt-musicians-v1";
 const DEFAULTS: Saved = {
@@ -67,6 +69,7 @@ const DEFAULTS: Saved = {
   lastQuery: "",
   lastResults: [],
   lastVideo: null,
+  favorites: [],
 };
 function load(): Saved {
   try {
@@ -86,7 +89,7 @@ function load(): Saved {
       if (maps[old]) { maps["goto"] = maps[old]; delete maps[old]; }
     }
     settings.mappings = maps as Settings["mappings"];
-    return { ...DEFAULTS, ...p, settings };
+    return { ...DEFAULTS, ...p, settings, favorites: Array.isArray(p.favorites) ? p.favorites : [] };
   } catch {
     return DEFAULTS;
   }
@@ -203,9 +206,26 @@ function App() {
     return () => { clearInterval(iv); clearInterval(sv); };
   }, []);
 
-  const playVideo = (v: VideoResult) => {
-    setState((s) => ({ ...s, lastVideo: { id: v.id, title: v.title, time: 0 } }));
-    playerRef.current?.loadVideoById?.({ videoId: v.id, startSeconds: 0 });
+  const playVideo = (v: VideoResult, startSeconds = 0) => {
+    setState((s) => ({ ...s, lastVideo: { id: v.id, title: v.title, time: startSeconds } }));
+    playerRef.current?.loadVideoById?.({ videoId: v.id, startSeconds });
+  };
+
+  const toggleFavorite = () => {
+    const video = stateRef.current.lastVideo;
+    if (!video) return;
+    const c = stateRef.current.settings.cues.goto ?? { m: 0, s: 0 };
+    const favorite: Favorite = { id: video.id, title: video.title, goto: { m: c.m, s: c.s } };
+    const exists = stateRef.current.favorites.some((f) => f.id === video.id);
+    setState((s) => ({ ...s, favorites: exists ? s.favorites.filter((f) => f.id !== video.id) : [favorite, ...s.favorites] }));
+    flash(exists ? "♡  Removed from favorites" : "♥  Added to favorites");
+  };
+
+  const openFavorite = (f: Favorite) => {
+    const start = f.goto.m * 60 + f.goto.s;
+    setState((s) => ({ ...s, lastVideo: { id: f.id, title: f.title, time: start } }));
+    playerRef.current?.loadVideoById?.({ videoId: f.id, startSeconds: start });
+    setSettingsOpen(false);
   };
 
   /* actions */
@@ -405,6 +425,10 @@ function App() {
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
             <Button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`}>Go to</Button>
+            <Button variant={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "default" : "secondary"} size="icon" onClick={toggleFavorite}
+              disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites">
+              <Heart className={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "fill-current" : ""} />
+            </Button>
           </div>
 
           <h2 className="mt-8 mb-3 text-sm uppercase tracking-wider text-muted-foreground">
@@ -469,6 +493,35 @@ function App() {
                 </li>
               ))}
             </ul>
+          </section>
+          <section className="border-t border-border pt-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Favorites</h2>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </div>
+            {s.favorites.length === 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">No favorites yet. Press the heart next to “Go to” to save the current video and its Go to position.</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {s.favorites.map((f) => {
+                  const gotoSeconds = f.goto.m * 60 + f.goto.s;
+                  return (
+                    <li key={f.id} className="flex items-center gap-2 rounded-md bg-background/50 p-2">
+                      <button onClick={() => openFavorite(f)} className="min-w-0 flex-1 text-left hover:text-primary">
+                        <span className="block truncate text-sm font-medium">{f.title}</span>
+                        <span className="text-xs text-muted-foreground">Go to {fmt(gotoSeconds)}</span>
+                      </button>
+                      <a href={"https://www.youtube.com/watch?v=" + f.id + "&t=" + gotoSeconds + "s"} target="_blank" rel="noreferrer"
+                        className="rounded bg-secondary px-2 py-1 text-xs hover:bg-accent" title="Open YouTube video at Go to position">
+                        Link
+                      </a>
+                      <button onClick={() => setState((x) => ({ ...x, favorites: x.favorites.filter((item) => item.id !== f.id) }))}
+                        className="text-xs text-muted-foreground hover:text-destructive" aria-label="Remove favorite">✕</button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
           <section className="border-t border-border pt-4 space-y-3 text-sm">
             <h2 className="font-semibold">Settings</h2>
