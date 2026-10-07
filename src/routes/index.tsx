@@ -132,6 +132,19 @@ function App() {
   const setSettings = (fn: (s: Settings) => Settings) =>
     setState((p) => ({ ...p, settings: fn(p.settings) }));
 
+  const setGoto = (goto: { m: number; s: number }) => {
+    setState((p) => {
+      const lastVideoId = p.lastVideo?.id;
+      return {
+        ...p,
+        settings: { ...p.settings, cues: { ...p.settings.cues, goto } },
+        favorites: lastVideoId
+          ? p.favorites.map((f) => f.id === lastVideoId ? { ...f, goto: { ...goto } } : f)
+          : p.favorites,
+      };
+    });
+  };
+
   /* player */
   const playerRef = useRef<any>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -481,14 +494,13 @@ function App() {
                   {a.id === "goto" && (
                     <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
                       <input type="number" min={0} value={s.cues.goto?.m ?? 0}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { ...x.cues.goto, m: Math.max(0, +e.target.value) } } }))}
+                        onChange={(e) => setGoto({ m: Math.max(0, +e.target.value), s: s.cues.goto?.s ?? 0 })}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> min
                       <input type="number" min={0} max={59} value={s.cues.goto?.s ?? 0}
-                        onChange={(e) => setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { ...x.cues.goto, s: Math.min(59, Math.max(0, +e.target.value)) } } }))}
+                        onChange={(e) => setGoto({ m: s.cues.goto?.m ?? 0, s: Math.min(59, Math.max(0, +e.target.value)) })}
                         className="w-14 rounded border border-input bg-background px-1.5 py-0.5" /> sec
-                      <button onClick={() => { const t = Math.floor(time); setSettings((x) => ({ ...x, cues: { ...x.cues, goto: { m: Math.floor(t / 60), s: t % 60 } } })); }}
-                        className="rounded bg-secondary px-2 py-0.5 hover:bg-accent">Current</button>
-                    </div>
+                      <button onClick={() => { const t = Math.floor(time); setGoto({ m: Math.floor(t / 60), s: t % 60 }); }}
+                        className="rounded bg-secondary px-2 py-0.5 hover:bg-accent">Current</button>                    </div>
                   )}
                 </li>
               ))}
