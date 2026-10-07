@@ -474,15 +474,15 @@ function App() {
             </DialogHeader>
           <section>
             <h2 className="font-semibold">MIDI Learn</h2>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1 min-w-0 break-words text-xs text-muted-foreground">
               {devices.length ? devices.join(", ") : midiStatus}{lastMsg && ` · last: ${lastMsg}`}
             </p>
             <ul className="mt-3 space-y-1.5">
               {ACTIONS.map((a) => (
                 <li key={a.id} className="min-w-0 overflow-hidden rounded-md bg-background/50 p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 text-sm">{a.label}</span>
-                    <code className="text-xs text-muted-foreground">{s.mappings[a.id] ?? "—"}</code>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm">{a.label}</span>
+                    <code className="max-w-[38%] shrink truncate text-xs text-muted-foreground">{s.mappings[a.id] ?? "—"}</code>
                     <button onClick={() => setLearning(learning === a.id ? null : a.id)}
                       className={`rounded px-2 py-0.5 text-xs ${learning === a.id ? "bg-primary text-primary-foreground animate-pulse" : "bg-secondary hover:bg-accent"}`}>
                       {learning === a.id ? "Press…" : "Learn"}
