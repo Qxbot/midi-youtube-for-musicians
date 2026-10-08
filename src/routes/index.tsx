@@ -484,9 +484,9 @@ function App() {
               <div className="relative flex justify-between px-3 pb-1 font-medium text-white drop-shadow -translate-y-0.5">
                 <div className="absolute inset-x-0 -top-5 -bottom-1 -z-10 bg-gradient-to-t from-black/70 via-black/35 to-transparent" />
                 <span style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px` }}>{fmt(time)} / {fmt(duration)}</span>
-                <span className="flex gap-3">
-                  <span>{s.speed}x · {s.volume}%</span>
-                  <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
+                <span className="flex gap-3" style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px`, lineHeight: 1.2 }}>
+                  <span style={{ fontSize: "inherit" }}>{s.speed}x · {s.volume}%</span>
+                  <button onClick={toggleFs} className="hover:text-primary" style={{ fontSize: "inherit", lineHeight: "inherit" }}>{isFs ? "Exit full screen" : "Full screen"}</button>
                 </span>
               </div>
               <div className="relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
