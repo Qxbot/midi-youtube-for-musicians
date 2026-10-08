@@ -470,7 +470,7 @@ function App() {
               </div>
             )}
             <div className={'absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 ' + (controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0')}>
-              <div className="flex justify-between px-3 pb-1 text-xs font-medium text-foreground/90 drop-shadow">
+              <div className="flex justify-between px-3 pb-1 text-xs font-medium text-foreground/90 drop-shadow -translate-y-0.5">
                 <span>{fmt(time)} / {fmt(duration)}</span>
                 <span className="flex gap-3">
                   <span>{s.speed}x · {s.volume}%</span>
