@@ -69,7 +69,7 @@ const DEFAULTS: Saved = {
   },
   lastQuery: "",
   lastResults: [],
-  lastVideo: null,
+  lastVideo: { id: "tEtukfFv3Wk", title: "How To Play Piano (Beginner Piano Lesson)", time: 0 },
   favorites: [],
 };
 function load(): Saved {
@@ -90,7 +90,13 @@ function load(): Saved {
       if (maps[old]) { maps["goto"] = maps[old]; delete maps[old]; }
     }
     settings.mappings = maps as Settings["mappings"];
-    return { ...DEFAULTS, ...p, settings, favorites: Array.isArray(p.favorites) ? p.favorites : [] };
+    return {
+      ...DEFAULTS,
+      ...p,
+      settings,
+      lastVideo: p.lastVideo ?? DEFAULTS.lastVideo,
+      favorites: Array.isArray(p.favorites) ? p.favorites : [],
+    };
   } catch {
     return DEFAULTS;
   }
