@@ -153,10 +153,21 @@ function App() {
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [stageWidth, setStageWidth] = useState(0);
   const [overlay, setOverlay] = useState<{ text: string; key: number } | null>(null);
   const overlayTimer = useRef<number | undefined>(undefined);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setStageWidth(el.getBoundingClientRect().width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ready]);
 
   const showControls = useCallback(() => {
     setControlsVisible(true);
@@ -470,8 +481,9 @@ function App() {
               </div>
             )}
             <div className={'absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 ' + (controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0')}>
-              <div className="flex justify-between px-3 pb-1 text-xs font-medium text-white drop-shadow -translate-y-0.5 mix-blend-difference">
-                <span>{fmt(time)} / {fmt(duration)}</span>
+              <div className="relative flex justify-between px-3 pb-1 font-medium text-white drop-shadow -translate-y-0.5">
+                <div className="absolute inset-x-0 -top-5 -bottom-1 -z-10 bg-gradient-to-t from-black/70 via-black/35 to-transparent" />
+                <span style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px` }}>{fmt(time)} / {fmt(duration)}</span>
                 <span className="flex gap-3">
                   <span>{s.speed}x · {s.volume}%</span>
                   <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
