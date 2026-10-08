@@ -441,6 +441,7 @@ function App() {
     seekVisualRef.current = target;
     setTime(target);
     playerRef.current?.seekTo?.(target, true);
+    playerRef.current?.playVideo?.();
     seekingRef.current = false;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
