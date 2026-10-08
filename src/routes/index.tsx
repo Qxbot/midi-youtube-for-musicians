@@ -392,12 +392,10 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const seekAt = (clientX: number, el: HTMLDivElement) => {
+  const seekTargetAt = (clientX: number, el: HTMLDivElement) => {
     const r = el.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    const target = ratio * duration;
-    playerRef.current?.seekTo?.(target, true);
-    return target;
+    return ratio * duration;
   };
 
   const seekingRef = useRef(false);
@@ -407,7 +405,8 @@ function App() {
   const seekPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     seekingRef.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    const target = seekAt(e.clientX, e.currentTarget);
+    const target = seekTargetAt(e.clientX, e.currentTarget);
+    setTime(target);
     flash(`⤓  ${fmt(target)}`);
   };
 
@@ -420,15 +419,16 @@ function App() {
       const pending = seekPendingRef.current;
       if (!pending || !seekingRef.current) return;
       seekPendingRef.current = null;
-      const target = seekAt(pending.x, pending.el);
+      const target = seekTargetAt(pending.x, pending.el);
       setTime(target);
     });
   };
 
   const seekPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!seekingRef.current) return;
-    const target = seekAt(e.clientX, e.currentTarget);
+    const target = seekTargetAt(e.clientX, e.currentTarget);
     setTime(target);
+    playerRef.current?.seekTo?.(target, true);
     seekingRef.current = false;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
