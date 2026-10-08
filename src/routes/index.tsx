@@ -155,6 +155,19 @@ function App() {
   const [duration, setDuration] = useState(0);
   const [overlay, setOverlay] = useState<{ text: string; key: number } | null>(null);
   const overlayTimer = useRef<number | undefined>(undefined);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsTimer = useRef<number | undefined>(undefined);
+
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    window.clearTimeout(controlsTimer.current);
+    controlsTimer.current = window.setTimeout(() => setControlsVisible(false), 3000);
+  }, []);
+
+  useEffect(() => {
+    showControls();
+    return () => window.clearTimeout(controlsTimer.current);
+  }, [showControls]);
 
   const flash = useCallback((text: string) => {
     setOverlay({ text, key: Date.now() });
@@ -403,7 +416,7 @@ function App() {
 
       <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden px-3 py-6 sm:px-4">
         <section>
-          <div ref={stageRef} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
+          <div ref={stageRef} onPointerMove={showControls} onPointerDown={showControls} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
             {/* iframe cropped top/bottom to hide title/share and "more videos" bars */}
             <div className="absolute inset-x-0 -top-[60px] -bottom-[60px]">
               <div ref={hostRef} className="h-full w-full" />
@@ -420,7 +433,7 @@ function App() {
                 </div>
               </div>
             )}
-            <div className="absolute inset-x-0 bottom-0 z-20">
+            <div className={'absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 ' + (controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0')}>
               <div className="flex justify-between px-3 pb-1 text-xs font-medium text-foreground/90 drop-shadow">
                 <span>{fmt(time)} / {fmt(duration)}</span>
                 <span className="flex gap-3">
