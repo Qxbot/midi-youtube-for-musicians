@@ -233,7 +233,15 @@ function App() {
       const p = playerRef.current;
       if (!p?.getCurrentTime) return;
       const t = p.getCurrentTime(), d = p.getDuration();
-      setTime(t); setDuration(d);
+      setDuration(d);
+      // Keep the knob at the user's chosen position while YouTube catches up.
+      if (seekVisualRef.current !== null) {
+        const target = seekVisualRef.current;
+        if (Math.abs(t - target) < 1.5) seekVisualRef.current = null;
+        else setTime(target);
+      } else {
+        setTime(t);
+      }
       if (d > 0 && t > d - 0.4 && p.getPlayerState() === 1) { p.pauseVideo(); p.seekTo(d - 0.5, true); }
     }, 250);
     const sv = window.setInterval(() => {
@@ -399,6 +407,7 @@ function App() {
   };
 
   const seekingRef = useRef(false);
+  const seekVisualRef = useRef<number | null>(null);
   const seekRafRef = useRef<number | null>(null);
   const seekPendingRef = useRef<{ x: number; el: HTMLDivElement } | null>(null);
 
@@ -406,6 +415,7 @@ function App() {
     seekingRef.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const target = seekTargetAt(e.clientX, e.currentTarget);
+    seekVisualRef.current = target;
     setTime(target);
     flash(`⤓  ${fmt(target)}`);
   };
@@ -420,6 +430,7 @@ function App() {
       if (!pending || !seekingRef.current) return;
       seekPendingRef.current = null;
       const target = seekTargetAt(pending.x, pending.el);
+      seekVisualRef.current = target;
       setTime(target);
     });
   };
@@ -427,6 +438,7 @@ function App() {
   const seekPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!seekingRef.current) return;
     const target = seekTargetAt(e.clientX, e.currentTarget);
+    seekVisualRef.current = target;
     setTime(target);
     playerRef.current?.seekTo?.(target, true);
     seekingRef.current = false;
