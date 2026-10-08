@@ -441,8 +441,10 @@ function App() {
                   <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
                 </span>
               </div>
-              <div className="h-1.5 w-full cursor-pointer bg-foreground/25 hover:h-2.5 transition-all" onClick={seekClick}>
-                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+              <div className="relative -translate-y-2 h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all" onClick={seekClick}>
+                <div className="relative h-full bg-primary" style={{ width: `${pct}%` }}>
+                  <div className="absolute right-0 top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-background bg-primary shadow-md" />
+                </div>
               </div>
             </div>
           </div>
