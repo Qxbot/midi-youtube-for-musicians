@@ -268,7 +268,9 @@ function App() {
         break;
       case "goto": {
         const c = s.cues.goto ?? { m: 0, s: 0 }; const target = c.m * 60 + c.s;
-        p.seekTo(target, true); flash(`⤓  Go to ${fmt(target)}`); break;
+        p.seekTo(target, true);
+        p.playVideo();
+        flash(`⤓  Go to ${fmt(target)}`); break;
       }
       case "forward": p.seekTo(Math.min(t + s.seekStep, p.getDuration()), true); flash(`»  +${s.seekStep}s`); break;
       case "back": p.seekTo(Math.max(t - s.seekStep, 0), true); flash(`«  −${s.seekStep}s`); break;
@@ -379,11 +381,45 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const seekClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const target = ((e.clientX - r.left) / r.width) * duration;
+  const seekAt = (clientX: number, el: HTMLDivElement) => {
+    const r = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    const target = ratio * duration;
     playerRef.current?.seekTo?.(target, true);
+    return target;
+  };
+
+  const seekingRef = useRef(false);
+  const seekRafRef = useRef<number | null>(null);
+  const seekPendingRef = useRef<{ x: number; el: HTMLDivElement } | null>(null);
+
+  const seekPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    seekingRef.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const target = seekAt(e.clientX, e.currentTarget);
     flash(`⤓  ${fmt(target)}`);
+  };
+
+  const seekPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!seekingRef.current) return;
+    seekPendingRef.current = { x: e.clientX, el: e.currentTarget };
+    if (seekRafRef.current !== null) return;
+    seekRafRef.current = requestAnimationFrame(() => {
+      seekRafRef.current = null;
+      const pending = seekPendingRef.current;
+      if (!pending || !seekingRef.current) return;
+      seekPendingRef.current = null;
+      const target = seekAt(pending.x, pending.el);
+      setTime(target);
+    });
+  };
+
+  const seekPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!seekingRef.current) return;
+    const target = seekAt(e.clientX, e.currentTarget);
+    setTime(target);
+    seekingRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
 
   const s = state.settings;
@@ -441,7 +477,11 @@ function App() {
                   <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
                 </span>
               </div>
-              <div className="relative -translate-y-2 h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all" onClick={seekClick}>
+              <div className="relative -translate-y-2 h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
+                onPointerDown={seekPointerDown}
+                onPointerMove={seekPointerMove}
+                onPointerUp={seekPointerUp}
+                onPointerCancel={seekPointerUp}>
                 <div className="relative h-full bg-primary" style={{ width: `${pct}%` }}>
                   <div className="absolute right-0 top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-background bg-primary shadow-md" />
                 </div>
