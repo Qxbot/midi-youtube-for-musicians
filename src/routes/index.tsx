@@ -477,7 +477,7 @@ function App() {
                   <button onClick={toggleFs} className="hover:text-primary">{isFs ? "Exit full screen" : "Full screen"}</button>
                 </span>
               </div>
-              <div className="relative -translate-y-2 h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
+              <div className="relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
                 onPointerDown={seekPointerDown}
                 onPointerMove={seekPointerMove}
                 onPointerUp={seekPointerUp}
