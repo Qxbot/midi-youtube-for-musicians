@@ -463,7 +463,7 @@ function App() {
               <div className="absolute inset-0 z-10 grid place-items-center text-muted-foreground pointer-events-none">Search and pick a video</div>
             )}
             {overlay && (
-              <div key={overlay.key} className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+              <div key={overlay.key} className="pointer-events-none absolute inset-0 z-20 grid place-items-center -translate-y-0.5">
                 <div className="animate-in fade-in zoom-in-95 rounded-2xl bg-background/80 px-8 py-4 text-3xl font-bold shadow-2xl backdrop-blur">
                   {overlay.text}
                 </div>
