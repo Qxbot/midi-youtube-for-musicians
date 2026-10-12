@@ -554,7 +554,8 @@ function App() {
             </div>
           </div>
           <h1 className="mt-3 text-lg font-semibold">{state.lastVideo?.title ?? "No video selected"}</h1>
-          <div className="mt-2 flex w-fit max-w-full flex-wrap gap-2">
+          <div className="mt-2 inline-flex max-w-full flex-col items-stretch gap-2">
+            <div className="flex flex-nowrap gap-2">
             <Button variant="secondary" onClick={() => runAction("back")}>« {s.seekStep}s</Button>
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
@@ -1391,7 +1392,8 @@ IgIAAABQIiIAAAAAJSICAAAAUCIiAAAAACUiAgAAAFAiIgAAAAAl/z8+0iec
 KwDhyQAAAABJRU5ErkJggg==
 " alt="" className="h-10 w-10 object-contain" /></Button>
             </div>
-            <div className="hidden portrait:order-6 portrait:min-[560px]:order-5 portrait:flex portrait:min-[560px]:basis-auto portrait:min-[560px]:w-auto w-full items-center justify-center gap-2 basis-full"><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button><Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button></div><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABBAAAAQACAYAAABYs6prAAABGGVYSWZNTQAq
+            </div>
+            <div className="hidden portrait:flex w-full items-center justify-center gap-2"><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button><Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button></div><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABBAAAAQACAYAAABYs6prAAABGGVYSWZNTQAq
 AAAACAAFAQAAAwAAAAEAAAAAAQEAAwAAAAEAAAAAh2kABAAAAAEAAABeARIA
 AwAAAAEAAQAAATIAAgAAABQAAABKAAAAADIwMjY6MTA6MTIgMDc6NTY6MzYA
 AAaQAwACAAAAFAAAAKygAgADAAAAAQQQAACQEAACAAAABwAAAMCgAwADAAAA
