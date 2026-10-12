@@ -475,6 +475,11 @@ function App() {
     setTime(target);
     playerRef.current?.seekTo?.(target, true);
     playerRef.current?.playVideo?.();
+    // Restart the seek feedback timer on release and hide the scrubber after 2 seconds.
+    flash(`⤓  ${fmt(target)}`);
+    setControlsVisible(true);
+    window.clearTimeout(controlsTimer.current);
+    controlsTimer.current = window.setTimeout(() => setControlsVisible(false), 2000);
     seekingRef.current = false;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
@@ -526,7 +531,7 @@ function App() {
                 </div>
               </div>
             )}
-            <div className={'absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 ' + (controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0')}>
+            <div className="absolute inset-x-0 bottom-0 z-20">
               <div className="relative flex justify-between px-3 pb-1 font-medium text-white drop-shadow -translate-y-0.5">
                 <div className="absolute inset-x-0 -top-5 -bottom-1 -z-10 bg-gradient-to-t from-black/70 via-black/35 to-transparent" />
                 <span style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px` }}>{fmt(time)} / {fmt(duration)}</span>
@@ -536,7 +541,7 @@ function App() {
                 </span>
               </div>
               <div
-                className="relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
+                className={'relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all ' + (controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0')}
                 onPointerDown={seekPointerDown}
                 onPointerMove={seekPointerMove}
                 onPointerUp={seekPointerUp}
