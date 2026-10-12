@@ -532,7 +532,7 @@ function App() {
               </div>
             )}
             <div className="absolute inset-x-0 bottom-0 z-20">
-              <div className="relative flex justify-between px-3 pb-1 font-medium text-white drop-shadow -translate-y-0.5">
+              <div className={"relative flex justify-between px-3 pb-1 font-medium text-white drop-shadow -translate-y-0.5 transition-opacity duration-200 " + (controlsVisible ? "opacity-100" : "pointer-events-none opacity-0")}>
                 <div className="absolute inset-x-0 -top-5 -bottom-1 -z-10 bg-gradient-to-t from-black/70 via-black/35 to-transparent" />
                 <span style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px` }}>{fmt(time)} / {fmt(duration)}</span>
                 <span className="flex gap-3" style={{ fontSize: `${Math.max(11, Math.min(18, stageWidth * 0.014))}px`, lineHeight: 1.2 }}>
