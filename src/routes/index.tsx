@@ -559,6 +559,10 @@ function App() {
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
             <Button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`}>Go to</Button>
+            <Button variant={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "default" : "secondary"} size="icon" onClick={toggleFavorite}
+              disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites">
+              <Heart className={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "fill-current" : ""} />
+            </Button>
             <div className="hidden landscape:flex items-center gap-2">
               <Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button>
               <Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button>
@@ -1387,7 +1391,7 @@ IgIAAABQIiIAAAAAJSICAAAAUCIiAAAAACUiAgAAAFAiIgAAAAAl/z8+0iec
 KwDhyQAAAABJRU5ErkJggg==
 " alt="" className="h-10 w-10 object-contain" /></Button>
             </div>
-            <div className="hidden portrait:flex items-center gap-2"><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button><Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button></div><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABBAAAAQACAYAAABYs6prAAABGGVYSWZNTQAq
+            <div className="hidden portrait:flex w-full items-center justify-center gap-2 basis-full"><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button><Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button></div><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABBAAAAQACAYAAABYs6prAAABGGVYSWZNTQAq
 AAAACAAFAQAAAwAAAAEAAAAAAQEAAwAAAAEAAAAAh2kABAAAAAEAAABeARIA
 AwAAAAEAAQAAATIAAgAAABQAAABKAAAAADIwMjY6MTA6MTIgMDc6NTY6MzYA
 AAaQAwACAAAAFAAAAKygAgADAAAAAQQQAACQEAACAAAABwAAAMCgAwADAAAA
@@ -2210,10 +2214,7 @@ IgAAAAAlIgIAAABQIiIAAAAAJSICAAAAUCIiAAAAACUiAgAAAFAiIgAAAAAl
 IgIAAABQIiIAAAAAJSICAAAAUCIiAAAAACUiAgAAAFAiIgAAAAAl/z8+0iec
 KwDhyQAAAABJRU5ErkJggg==
 " alt="" className="h-10 w-10 object-contain" /></Button></div></div>
-            <Button variant={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "default" : "secondary"} size="icon" onClick={toggleFavorite}
-              disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites">
-              <Heart className={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "fill-current" : ""} />
-            </Button>
+
           </div>
 
           <h2 className="mt-8 mb-3 text-sm uppercase tracking-wider text-muted-foreground">
