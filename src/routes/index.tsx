@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { searchYouTube, type VideoResult } from "@/lib/youtube-search.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Heart, Settings2 } from "lucide-react";
+import { Heart, Settings2, Volume1, Volume2, Gauge, Minus } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -90,13 +90,7 @@ function load(): Saved {
       if (maps[old]) { maps["goto"] = maps[old]; delete maps[old]; }
     }
     settings.mappings = maps as Settings["mappings"];
-    return {
-      ...DEFAULTS,
-      ...p,
-      settings,
-      lastVideo: p.lastVideo ?? DEFAULTS.lastVideo,
-      favorites: Array.isArray(p.favorites) ? p.favorites : [],
-    };
+    return { ...DEFAULTS, ...p, settings, favorites: Array.isArray(p.favorites) ? p.favorites : [] };
   } catch {
     return DEFAULTS;
   }
@@ -128,6 +122,7 @@ function loadYT(): Promise<any> {
 /* ---------- App ---------- */
 function App() {
   const [ready, setReady] = useState(false);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [state, setState] = useState<Saved>(DEFAULTS);
   const stateRef = useRef(state);
@@ -161,6 +156,8 @@ function App() {
   const [duration, setDuration] = useState(0);
   const [stageWidth, setStageWidth] = useState(0);
   const [overlay, setOverlay] = useState<{ text: string; key: number } | null>(null);
+  const [actionButtonFlash, setActionButtonFlash] = useState<"volUp" | "volDown" | "speedUp" | "speedDown" | null>(null);
+  const actionButtonTimer = useRef<number | undefined>(undefined);
   const overlayTimer = useRef<number | undefined>(undefined);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimer = useRef<number | undefined>(undefined);
@@ -191,6 +188,14 @@ function App() {
     window.clearTimeout(overlayTimer.current);
     overlayTimer.current = window.setTimeout(() => setOverlay(null), 2000);
   }, []);
+
+  const flashActionButton = useCallback((id: "volUp" | "volDown" | "speedUp" | "speedDown") => {
+    setActionButtonFlash(id);
+    window.clearTimeout(actionButtonTimer.current);
+    actionButtonTimer.current = window.setTimeout(() => setActionButtonFlash(null), 450);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(actionButtonTimer.current), []);
 
   const killCaptions = () => {
     const p = playerRef.current;
@@ -302,14 +307,14 @@ function App() {
       case "volUp": case "volDown": {
         const v = Math.max(0, Math.min(100, s.volume + (id === "volUp" ? 10 : -10)));
         p.setVolume(v); if (v > 0) p.unMute();
-        setSettings((x) => ({ ...x, volume: v })); flash(`🔊  Volume ${v}%`); break;
+        setSettings((x) => ({ ...x, volume: v })); flashActionButton(id); flash(`🔊  Volume ${v}%`); break;
       }
       case "speedUp": case "speedDown": {
         const r = Math.max(0.25, Math.min(2, s.speed + (id === "speedUp" ? 0.25 : -0.25)));
-        p.setPlaybackRate(r); setSettings((x) => ({ ...x, speed: r })); flash(`⏱  Speed ${r}x`); break;
+        p.setPlaybackRate(r); setSettings((x) => ({ ...x, speed: r })); flashActionButton(id); flash(`⏱  Speed ${r}x`); break;
       }
     }
-  }, [flash]);
+  }, [flash, flashActionButton]);
 
   /* MIDI */
   const [midiStatus, setMidiStatus] = useState("Connecting…");
@@ -319,46 +324,66 @@ function App() {
   learningRef.current = learning;
   const [lastMsg, setLastMsg] = useState("");
 
+  const midiAccessRef = useRef<any>(null);
+
+  const connectMidi = useCallback(async () => {
+    const nav = navigator as any;
+    if (!nav.requestMIDIAccess) {
+      setMidiStatus("Web MIDI not supported in this browser (use Chrome or Edge)");
+      return;
+    }
+
+    try {
+      const access = await nav.requestMIDIAccess();
+      midiAccessRef.current = access;
+
+      const onMsg = (e: any) => {
+        const [st = 0, d1 = 0, d2 = 0] = e.data as Uint8Array;
+        const type = st & 0xf0, ch = (st & 0x0f) + 1;
+        let key: string | null = null;
+        if (type === 0x90 && d2 > 0) key = `note:${ch}:${d1}`;
+        else if (type === 0xb0 && d2 > 0) key = `cc:${ch}:${d1}`;
+        else if (type === 0xc0) key = `pc:${ch}:${d1}`;
+        if (!key) return;
+        setLastMsg(key.replace(/:/, " ch").replace(/:/, " #"));
+        const l = learningRef.current;
+        if (l) {
+          setSettings((s) => {
+            const m = { ...s.mappings };
+            for (const k in m) if (m[k as ActionId] === key) delete m[k as ActionId];
+            m[l] = key!;
+            return { ...s, mappings: m };
+          });
+          setLearning(null);
+          flash(`Learned: ${ACTIONS.find((a) => a.id === l)?.label}`);
+          return;
+        }
+        const maps = stateRef.current.settings.mappings;
+        const act = (Object.keys(maps) as ActionId[]).find((k) => maps[k] === key);
+        if (act) runAction(act);
+      };
+
+      const bind = () => {
+        const names: string[] = [];
+        access.inputs.forEach((i: any) => { i.onmidimessage = onMsg; names.push(i.name); });
+        setDevices(names);
+        setMidiStatus(names.length ? "Connected" : "No MIDI device found – plug in a controller");
+      };
+
+      bind();
+      access.onstatechange = bind;
+    } catch {
+      setMidiStatus("MIDI access denied");
+    }
+  }, [runAction, flash]);
+
   useEffect(() => {
     if (!ready) return;
-    const nav = navigator as any;
-    if (!nav.requestMIDIAccess) { setMidiStatus("Web MIDI not supported in this browser (use Chrome or Edge)"); return; }
-    let access: any;
-    const onMsg = (e: any) => {
-      const [st = 0, d1 = 0, d2 = 0] = e.data as Uint8Array;
-      const type = st & 0xf0, ch = (st & 0x0f) + 1;
-      let key: string | null = null;
-      if (type === 0x90 && d2 > 0) key = `note:${ch}:${d1}`;
-      else if (type === 0xb0 && d2 > 0) key = `cc:${ch}:${d1}`;
-      else if (type === 0xc0) key = `pc:${ch}:${d1}`;
-      if (!key) return;
-      setLastMsg(key.replace(/:/, " ch").replace(/:/, " #"));
-      const l = learningRef.current;
-      if (l) {
-        setSettings((s) => {
-          const m = { ...s.mappings };
-          for (const k in m) if (m[k as ActionId] === key) delete m[k as ActionId];
-          m[l] = key!;
-          return { ...s, mappings: m };
-        });
-        setLearning(null);
-        flash(`Learned: ${ACTIONS.find((a) => a.id === l)?.label}`);
-        return;
-      }
-      const maps = stateRef.current.settings.mappings;
-      const act = (Object.keys(maps) as ActionId[]).find((k) => maps[k] === key);
-      if (act) runAction(act);
+    connectMidi();
+    return () => {
+      midiAccessRef.current?.inputs.forEach((i: any) => (i.onmidimessage = null));
     };
-    const bind = () => {
-      const names: string[] = [];
-      access.inputs.forEach((i: any) => { i.onmidimessage = onMsg; names.push(i.name); });
-      setDevices(names);
-      setMidiStatus(names.length ? "Connected" : "No MIDI device found – plug in a controller");
-    };
-    nav.requestMIDIAccess().then((a: any) => { access = a; bind(); a.onstatechange = bind; },
-      () => setMidiStatus("MIDI access denied"));
-    return () => { access?.inputs.forEach((i: any) => (i.onmidimessage = null)); };
-  }, [ready, runAction, flash]);
+  }, [ready, connectMidi]);
 
   /* fullscreen */
   const [isFs, setIsFs] = useState(false);
@@ -461,7 +486,7 @@ function App() {
         <div className="mx-auto flex w-full min-w-0 max-w-7xl items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
           <div className="flex shrink-0 items-center gap-2 font-bold tracking-tight">
             <img src="/app-icon.png" alt="" className="h-8 w-8 rounded-md object-cover" />
-            <span className="hidden sm:flex sm:flex-col sm:leading-tight"><span>Midi YouTube</span><span className="text-muted-foreground font-normal">for Musicians</span></span>
+            <span className="hidden sm:flex sm:flex-col sm:leading-tight"><span>MIDI YouTube</span><span className="text-muted-foreground font-normal">for musicians</span></span>
           </div>
           <form onSubmit={doSearch} className="flex min-w-0 flex-1 max-w-2xl">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search YouTube"
@@ -508,12 +533,14 @@ function App() {
                   <button onClick={toggleFs} className="hover:text-primary" style={{ fontSize: "inherit", lineHeight: "inherit" }}>{isFs ? "Exit full screen" : "Full screen"}</button>
                 </span>
               </div>
-              <div className="relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
+              <div
+                className="relative -translate-y-[6px] h-1.5 w-full cursor-pointer touch-none overflow-visible bg-foreground/25 hover:h-2.5 transition-all"
                 onPointerDown={seekPointerDown}
                 onPointerMove={seekPointerMove}
                 onPointerUp={seekPointerUp}
-                onPointerCancel={seekPointerUp}>
-                <div className="relative h-full bg-primary" style={{ width: `${pct}%` }}>
+                onPointerCancel={seekPointerUp}
+              >
+                <div className="relative h-full bg-primary pointer-events-none" style={{ width: `${pct}%` }}>
                   <div className="absolute right-0 top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-background bg-primary shadow-md" />
                 </div>
               </div>
@@ -525,6 +552,13 @@ function App() {
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
             <Button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`}>Go to</Button>
+            <div className="hidden landscape:flex items-center gap-2">
+              <Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button>
+              <Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button>
+              <Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="/111970_bianco.png" alt="" className="h-10 w-10 object-contain" /></Button>
+              <Button variant="secondary" size="icon" onClick={() => runAction("speedUp")} aria-label="Increase playback speed" title="Speed +" className={actionButtonFlash === "speedUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="/111971_bianco.png" alt="" className="h-10 w-10 object-contain" /></Button>
+            </div>
+            <div className="hidden portrait:flex items-center gap-2"><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("volDown")} aria-label="Volume down" title="Volume -" className={actionButtonFlash === "volDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume1 /></Button><Button variant="secondary" size="icon" onClick={() => runAction("volUp")} aria-label="Volume up" title="Volume +" className={actionButtonFlash === "volUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><Volume2 /></Button></div><div className="flex items-center gap-1"><Button variant="secondary" size="icon" onClick={() => runAction("speedDown")} aria-label="Decrease playback speed" title="Speed -" className={actionButtonFlash === "speedDown" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="/111970_bianco.png" alt="" className="h-10 w-10 object-contain" /></Button><Button variant="secondary" size="icon" onClick={() => runAction("speedUp")} aria-label="Increase playback speed" title="Speed +" className={actionButtonFlash === "speedUp" ? "bg-primary text-primary-foreground ring-2 ring-primary scale-95 transition-transform" : "transition-transform"}><img src="/111971_bianco.png" alt="" className="h-10 w-10 object-contain" /></Button></div></div>
             <Button variant={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "default" : "secondary"} size="icon" onClick={toggleFavorite}
               disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites">
               <Heart className={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "fill-current" : ""} />
@@ -564,6 +598,13 @@ function App() {
             <p className="mt-1 min-w-0 break-words text-xs text-muted-foreground">
               {devices.length ? devices.join(", ") : midiStatus}{lastMsg && ` · last: ${lastMsg}`}
             </p>
+            <button
+              type="button"
+              onClick={connectMidi}
+              className="mt-2 rounded bg-secondary px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            >
+              Connect MIDI
+            </button>
             <ul className="mt-3 space-y-1.5">
               {ACTIONS.map((a) => (
                 <li key={a.id} className="min-w-0 overflow-hidden rounded-md bg-background/50 p-2">
