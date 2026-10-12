@@ -463,6 +463,8 @@ function App() {
       const target = seekTargetAt(pending.x, pending.el);
       seekVisualRef.current = target;
       setTime(target);
+      // Keep the actual YouTube playback position synchronized while dragging.
+      playerRef.current?.seekTo?.(target, true);
     });
   };
 
