@@ -554,8 +554,8 @@ function App() {
             </div>
           </div>
           <h1 className="mt-3 text-lg font-semibold">{state.lastVideo?.title ?? "No video selected"}</h1>
-          <div className="mt-2 inline-flex max-w-full flex-col items-stretch gap-2">
-            <div className="flex flex-nowrap gap-2">
+          <div className="mt-2 flex w-full max-w-full flex-col items-center gap-2">
+            <div className="flex w-full flex-nowrap justify-center gap-2">
             <Button variant="secondary" onClick={() => runAction("back")}>« {s.seekStep}s</Button>
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
