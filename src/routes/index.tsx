@@ -186,7 +186,7 @@ function App() {
   const flash = useCallback((text: string) => {
     setOverlay({ text, key: Date.now() });
     window.clearTimeout(overlayTimer.current);
-    overlayTimer.current = window.setTimeout(() => setOverlay(null), 3000);
+    overlayTimer.current = window.setTimeout(() => setOverlay(null), 6000);
   }, []);
 
   const flashActionButton = useCallback((id: "volUp" | "volDown" | "speedUp" | "speedDown") => {
