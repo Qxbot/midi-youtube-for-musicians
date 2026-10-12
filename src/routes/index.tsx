@@ -554,13 +554,13 @@ function App() {
             </div>
           </div>
           <h1 className="mt-3 text-lg font-semibold">{state.lastVideo?.title ?? "No video selected"}</h1>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex w-fit max-w-full flex-wrap gap-2">
             <Button variant="secondary" onClick={() => runAction("back")}>« {s.seekStep}s</Button>
             <Button onClick={() => runAction("playPause")}>{playing ? "Pause" : "Play"}</Button>
             <Button variant="secondary" onClick={() => runAction("forward")}>{s.seekStep}s »</Button>
             <Button onClick={() => runAction("goto")} title={`Go to ${fmt((s.cues.goto?.m ?? 0) * 60 + (s.cues.goto?.s ?? 0))}`}>Go to</Button>
             <Button variant={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "default" : "secondary"} size="icon" onClick={toggleFavorite}
-              disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites" className="portrait:order-5 portrait:min-[560px]:order-last">
+              disabled={!state.lastVideo} aria-label="Add to favorites" title="Add/remove from favorites">
               <Heart className={state.favorites.some((f) => f.id === state.lastVideo?.id) ? "fill-current" : ""} />
             </Button>
             <div className="hidden landscape:flex items-center gap-2">
