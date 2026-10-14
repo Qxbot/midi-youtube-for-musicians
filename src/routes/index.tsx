@@ -414,6 +414,7 @@ function App() {
   const [query, setQuery] = useState("");
   useEffect(() => { if (ready) setQuery(state.lastQuery); /* eslint-disable-next-line */ }, [ready]);
   const [searching, setSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const doSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -422,9 +423,11 @@ function App() {
     try {
       const { results } = await searchYouTube({ data: { q } });
       setState((s) => ({ ...s, lastQuery: q, lastResults: results }));
+      setShowSearchResults(true);
     } finally { setSearching(false); }
   };
   const pick = (v: VideoResult) => {
+    setShowSearchResults(false);
     setSelected(v.id);
     setTimeout(() => setSelected(null), 1200);
     playVideo(v);
@@ -514,6 +517,7 @@ function App() {
 
       <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden px-3 py-6 sm:px-4">
         <section>
+          <div className={showSearchResults ? "hidden" : ""}>
           <div ref={stageRef} onPointerMove={showControls} onPointerDown={showControls} className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black [&:fullscreen]:rounded-none [&:fullscreen]:aspect-auto">
             {/* iframe cropped top/bottom to hide title/share and "more videos" bars */}
             <div className="absolute inset-x-0 -top-[60px] -bottom-[60px]">
@@ -2219,26 +2223,37 @@ KwDhyQAAAABJRU5ErkJggg==
 
           </div>
 
-          <h2 className="mt-8 mb-3 text-sm uppercase tracking-wider text-muted-foreground">
-            {state.lastQuery ? `Results for “${state.lastQuery}”` : "Search results"}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          </div>
+          {showSearchResults && (
+          <div className="min-h-[calc(100dvh-7rem)]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm uppercase tracking-wider text-muted-foreground">
+                {state.lastQuery ? `Results for “${state.lastQuery}”` : "Search results"}
+              </h2>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setShowSearchResults(false)}>Back to video</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {state.lastResults.map((v) => {
               const active = state.lastVideo?.id === v.id;
               return (
                 <button key={v.id} onClick={() => pick(v)}
-                  className={`group/card rounded-xl p-2 text-left transition-all duration-200 hover:-translate-y-1 hover:bg-card hover:ring-2 hover:ring-primary/60 ${
+                  className={`group/card min-w-0 rounded-lg p-1.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:bg-card hover:ring-2 hover:ring-primary/60 ${
                     selected === v.id ? "bg-primary text-primary-foreground ring-2 ring-primary" : active ? "bg-card ring-1 ring-primary/40" : ""}`}>
                   <div className="relative overflow-hidden rounded-lg">
                     <img src={v.thumbnail} alt="" loading="lazy" className="aspect-video w-full object-cover transition-transform group-hover/card:scale-105" />
                     <span className="absolute bottom-1 right-1 rounded bg-background/85 px-1.5 text-xs text-foreground">{v.duration}</span>
                   </div>
-                  <div className="mt-2 line-clamp-2 text-sm font-medium">{v.title}</div>
-                  <div className={`text-xs ${selected === v.id ? "" : "text-muted-foreground"}`}>{v.channel} · {v.views}</div>
+                  <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-snug sm:text-sm">{v.title}</div>
+                  <div className={`mt-0.5 line-clamp-1 text-[10px] sm:text-xs ${selected === v.id ? "" : "text-muted-foreground"}`}>{v.channel} · {v.views}</div>
                 </button>
               );
             })}
+            </div>
+            {state.lastResults.length === 0 && !searching && (
+              <p className="py-8 text-center text-sm text-muted-foreground">No results found. Try another search.</p>
+            )}
           </div>
+          )}
         </section>
 
         <Dialog open={settingsOpen} onOpenChange={(open) => { setSettingsOpen(open); if (!open) setLearning(null); }}>
