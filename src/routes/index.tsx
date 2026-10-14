@@ -415,6 +415,7 @@ function App() {
   useEffect(() => { if (ready) setQuery(state.lastQuery); /* eslint-disable-next-line */ }, [ready]);
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showResultsGrid, setShowResultsGrid] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const doSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -424,6 +425,7 @@ function App() {
       const { results } = await searchYouTube({ data: { q } });
       setState((s) => ({ ...s, lastQuery: q, lastResults: results }));
       setShowSearchResults(true);
+      setShowResultsGrid(true);
     } finally { setSearching(false); }
   };
   const pick = (v: VideoResult) => {
@@ -431,6 +433,8 @@ function App() {
     setSelected(v.id);
     setTimeout(() => setSelected(null), 1200);
     playVideo(v);
+    setShowSearchResults(false);
+    setShowResultsGrid(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -2224,13 +2228,13 @@ KwDhyQAAAABJRU5ErkJggg==
           </div>
 
           </div>
-          {showSearchResults && (
+          {showResultsGrid && (
           <div className="min-h-[calc(100dvh-7rem)]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm uppercase tracking-wider text-muted-foreground">
                 {state.lastQuery ? `Results for “${state.lastQuery}”` : "Search results"}
               </h2>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setShowSearchResults(false)}>Back to video</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => { if (showSearchResults) setShowSearchResults(false); else setShowResultsGrid(false); }}>{showSearchResults ? "Back to video" : "Hide results"}</Button>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {state.lastResults.map((v) => {
